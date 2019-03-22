@@ -1,0 +1,180 @@
+<!DOCTYPE html> 
+<html lang="en">
+<head>
+		<title>Dogecoin Multi-Balance Checker Tool!</title>
+		<meta http-equiv="content-type" content="text/html;charset=utf-8" />
+		<script type="text/javascript" src="js/jquery-1.9.1.min.js"></script>
+</head>
+<body>
+<center>
+<h2>Dogecoin Multi-Balance Checker Tool!</h2>
+<h3>by Wowee0 (2019-03-22)</h3>
+<br>
+<table border=0 width=60%>
+<tr>
+<td></td><td>This is a tool for checking the balances of multiple Dogecoin addresses.  It will search for addresses in whatever text is in the left hand box, query each balance and display the results in the right hand box.  Note that the web request for checking an address (<a href='https://dogechain.info/chain/Dogecoin/q/addressbalance/'>dogechain.info</a>) only allows ~30 queries per minute.  When the service is throttled, the tool will wait until the service becomes available again. 
+<br>
+<br>
+To use; copy/paste your text into the left hand box, then press the button.
+</td><td></td></tr>
+</table>
+<br>
+<button id='START'>check balances</button>
+<br>
+<br>
+    <textarea rows=500 cols=44 id="phrase"></textarea>
+    <textarea rows=500 cols=56 id="results"></textarea>
+<br>
+<br>
+</center>
+</body>
+<script type="text/javascript">
+
+
+$(document).ready(function() {
+
+    var str = 
+        "Example: DHyE4KAnkkn1aZK3vEVFanDSaTXP8xUmVv\n"
+        +"another one\n"
+        +"D7DZiJbE4JveNf51JVZMvQcDkHMjxYZqyg\n"
+        +"random text will be ignored        DCumpqEchUNi4anGDFxdv8n4psozKKzRnV\n"
+        +"the quick brown fox jumped over the lazy dog        DKCiS8QyK7wyCQ9Ud5tBxAujSytVF2Wwjq\n"
+        +"hello world DPdJS4Sp2G6GePnCEW654UkaY5ykZ558MT\n";
+
+    document.getElementById('phrase').value = str;
+
+    $('#START').click(function(){ 
+	    startTest();
+    });
+
+}); // end of document.ready
+
+
+    function startTest(){
+        document.getElementById('results').value = "";
+        // get a line from the input textarea
+        var lines = $('textarea').val().split('\n');
+        while (lines.length > 0) {
+            //debugger;
+            var str = lines[0];
+            lines.splice(0,1);  // remove the first element
+            var patt1 = /D................................./g; //[ \t]
+            var result = str.match(patt1);
+            // dogecoin address sanity checks
+            if (result != null) {
+                debugger;
+                var dogeAddr = result[0].trim();
+                if (dogeAddr.search(' ') < 0) {
+                    document.getElementById('results').value += dogeAddr + "\n";
+                }
+            }
+        }
+        document.getElementById('phrase').value = document.getElementById('results').value;
+        document.getElementById('results').value = "";
+        window.setTimeout(makeApiRequest,1000);
+    }
+
+    function makeApiRequest() { // regular API request
+        debugger;
+        // get a line from the input textarea
+        var results = document.getElementById('results').value.split('\n');
+        var lines = document.getElementById('phrase').value.split('\n');
+        var dogeAddr = lines[results.length-1];
+        if (makeQuery(dogeAddr) == true) {
+            document.getElementById('results').value += dogeAddr + " : ";
+        }
+        else {
+            document.getElementById('results').value += "===== FINISHED =====\n";
+        }
+    }
+
+    function retryApiRequest() { // RETRY the API request since the last attempt failed
+        debugger;
+        // get a line from the input textarea
+        var results = document.getElementById('results').value;
+        results = results.replace("WAITING...", "");
+        document.getElementById('results').value = results;
+        results = document.getElementById('results').value.split('\n');
+        var lines = document.getElementById('phrase').value.split('\n');
+        var dogeAddr = lines[results.length-2];
+        makeQuery(dogeAddr);
+    }
+
+    function makeQuery(dogeAddr){
+        debugger;
+        dogeAddr = dogeAddr.trim();
+        if (dogeAddr.length > 0) {
+            altAjax ({
+                type: "GET",
+                url: "https://dogechain.info/chain/Dogecoin/q/addressbalance/"+dogeAddr,
+                dataType: "json",
+                error: function(data) {
+                },
+                success: function(data) {
+                },
+                complete: function(data, status) {
+                }
+            });
+            return true;
+        }
+        return false;
+    }
+
+
+
+    var altAjax = function(opts) {
+        var options = {
+            url: 'http://127.0.0.1:8080/doge',
+            type: 'GET',
+            data: {},
+            dataType: 'text',
+            successCodes: [304, 401, 403, 404, 500],
+            statusCode: {},
+            success: [],
+            error: [],
+            complete: []
+        };
+        $.extend(options, opts);
+
+        var req = new XMLHttpRequest();
+        var url = options.url;
+
+        req.addEventListener("progress", updateProgress);
+        req.addEventListener("load", transferComplete);
+        req.addEventListener("error", transferFailed);
+        req.addEventListener("abort", transferCanceled);
+
+        req.onreadystatechange = function () 
+        {
+	        if (req.readyState > 3)
+	        {  	
+		        //alert('LOADING'+req.readyState);
+		        //alert(req.responseText);
+                if (req.responseText.length > 0) {
+                    document.getElementById('results').value += req.responseText + "\n";
+                }
+	        }
+        };
+
+        req.open(options.type, url, true);
+        req.send();
+
+        function updateProgress(evt) {
+        }
+        function transferComplete(evt) {
+            window.setTimeout(makeApiRequest,100);
+        }
+        function transferFailed(evt) {
+            document.getElementById('results').value += "WAITING...";
+            window.setTimeout(retryApiRequest,5000);
+        }
+        function transferCanceled(evt) {
+        }
+
+    };  // end of altAjax
+
+
+</script>
+</html>
+
+
